@@ -1,0 +1,90 @@
+{
+  "name": "warden-auth",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Warden, the self-hosted auth service: sign-in, MFA, token refresh, profile, sessions and social login for web and React Native, plus token verification, role checks, user management and webhook signatures for Node.js.",
+  "keywords": [
+    "warden",
+    "auth",
+    "authentication",
+    "jwt",
+    "jwks",
+    "oauth",
+    "pkce",
+    "mfa",
+    "sessions",
+    "webhooks",
+    "react-native",
+    "typescript"
+  ],
+  "author": "Fatih Acan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fatihacan1/warden-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fatihacan1/warden-js/issues"
+  },
+  "homepage": "https://github.com/fatihacan1/warden-js#readme",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/esm/server.d.ts",
+        "default": "./dist/esm/server.js"
+      },
+      "require": {
+        "types": "./dist/cjs/server.d.ts",
+        "default": "./dist/cjs/server.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "server": [
+        "./dist/cjs/server.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "AGENTS.md",
+    "llms.txt"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node scripts/mark-modules.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node --test tests/e2e.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "example": "node scripts/serve-example.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false
+}

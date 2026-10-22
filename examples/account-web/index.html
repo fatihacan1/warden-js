@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account · Warden example</title>
+<link rel="stylesheet" href="./styles.css">
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+<header class="bar">
+  <strong>Acme</strong>
+  <span class="bar-user" id="bar-user"></span>
+</header>
+
+<main class="wrap">
+  <p class="notice" id="notice" role="status" hidden></p>
+
+  <!-- Signed out -->
+  <section id="view-auth" hidden>
+    <div class="card narrow">
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="signin" aria-selected="true">Sign in</button>
+        <button role="tab" data-tab="signup" aria-selected="false">Create account</button>
+      </div>
+
+      <form id="form-signin" data-panel="signin">
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Sign in</button>
+        <button class="link" type="button" id="forgot">Forgot your password?</button>
+      </form>
+
+      <form id="form-signup" data-panel="signup" hidden>
+        <label>Name <input name="name" autocomplete="name"></label>
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="8">
+          <small id="pw-hint">At least 8 characters.</small></label>
+        <button class="primary" type="submit">Create account</button>
+      </form>
+
+      <form id="form-mfa" hidden>
+        <p>Enter the 6-digit code from your authenticator app, or a recovery code.</p>
+        <label>Code <input name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+        <button class="primary" type="submit">Verify</button>
+      </form>
+
+      <div id="social" class="social" hidden>
+        <p class="divider"><span>or</span></p>
+        <div id="social-buttons"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Signed in -->
+  <section id="view-account" hidden>
+    <nav class="tabs page-tabs" role="tablist">
+      <button role="tab" data-page="profile" aria-selected="true">Profile</button>
+      <button role="tab" data-page="security" aria-selected="false">Security</button>
+      <button role="tab" data-page="accounts" aria-selected="false">Linked accounts</button>
+      <button role="tab" data-page="devices" aria-selected="false">Devices</button>
+    </nav>
+
+    <div data-page-panel="profile" class="card">
+      <h2>Profile</h2>
+      <div class="profile">
+        <div class="avatar" id="avatar" aria-hidden="true"></div>
+        <div class="avatar-actions">
+          <label class="button">Upload photo <input id="avatar-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label>
+          <button type="button" id="avatar-remove">Remove</button>
+          <small>JPEG, PNG, GIF or WebP. Stored as a 512×512 JPEG, metadata removed.</small>
+        </div>
+      </div>
+      <form id="form-profile">
+        <label>Name <input name="name" maxlength="100"></label>
+        <label>Email <input name="email" disabled></label>
+        <label>Email language
+          <select name="locale">
+            <option value="">Default</option>
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+          </select>
+        </label>
+        <p id="verify-row" class="inline" hidden>Email not verified. <button type="button" class="link" id="resend">Send the link again</button></p>
+        <button class="primary" type="submit">Save</button>
+      </form>
+    </div>
+
+    <div data-page-panel="security" class="card" hidden>
+      <h2>Password</h2>
+      <form id="form-password">
+        <label id="current-pw-label">Current password <input name="current" type="password" autocomplete="current-password"></label>
+        <label>New password <input name="next" type="password" autocomplete="new-password" required minlength="8"></label>
+        <button class="primary" type="submit">Change password</button>
+        <small>Other devices are signed out when the password changes.</small>
+      </form>
+
+      <h2>Two-factor authentication</h2>
+      <div id="mfa-off" hidden>
+        <p>Protect your account with codes from an authenticator app.</p>
+        <button type="button" class="primary" id="mfa-start">Set up</button>
+        <div id="mfa-setup" hidden>
+          <ol>
+            <li>Open your authenticator app and add an account with this key, or open the link on your phone:
+              <code id="mfa-secret" class="secret"></code>
+              <a id="mfa-link" href="#">Open in authenticator app</a></li>
+            <li>Enter the 6-digit code it shows.</li>
+          </ol>
+          <form id="form-mfa-enable" class="inline-form">
+            <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required>
+            <button class="primary" type="submit">Turn on</button>
+          </form>
+        </div>
+      </div>
+      <div id="mfa-on" hidden>
+        <p><span class="pill ok">On</span> Sign-ins ask for a code from your app.</p>
+        <form id="form-mfa-disable" class="inline-form">
+          <input name="code" inputmode="numeric" placeholder="Code to confirm" required>
+          <button type="submit" class="danger">Turn off</button>
+          <button type="button" id="mfa-regen">New recovery codes</button>
+        </form>
+      </div>
+      <div id="recovery" class="recovery" hidden>
+        <p><strong>Save these recovery codes.</strong> Each works once if you lose your phone. They are not shown again.</p>
+        <pre id="recovery-codes"></pre>
+      </div>
+
+      <h2>Delete account</h2>
+      <form id="form-delete">
+        <p>Removes your account and data permanently.</p>
+        <label>Password <input name="password" type="password" autocomplete="current-password"></label>
+        <button type="submit" class="danger">Delete my account</button>
+      </form>
+    </div>
+
+    <div data-page-panel="accounts" class="card" hidden>
+      <h2>Linked accounts</h2>
+      <p>Sign in with any of these. Signing in with a provider that uses the same verified email links it automatically.</p>
+      <ul class="list" id="identities"></ul>
+      <div id="link-buttons" class="row"></div>
+    </div>
+
+    <div data-page-panel="devices" class="card" hidden>
+      <h2>Devices</h2>
+      <p>Places where you are signed in. Sign out anything you do not recognize.</p>
+      <ul class="list" id="sessions"></ul>
+      <div class="row">
+        <button type="button" id="signout-others">Sign out all other devices</button>
+        <button type="button" class="danger" id="signout">Sign out</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Example app for <a href="https://github.com/fatihacan1/warden-js">warden-auth</a>. Configure it with <code>?url=</code> and <code>?key=</code>.</p>
+</main>
+</body>
+</html>

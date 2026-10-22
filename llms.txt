@@ -1,0 +1,17 @@
+# warden-auth
+
+> TypeScript SDK for Warden, a self-hosted authentication service. `warden-auth` is the client for browsers and React Native; `warden-auth/server` verifies access tokens, checks roles, manages users with a secret key and verifies webhooks on Node.js 20+, Bun, Deno and edge runtimes. Zero dependencies.
+
+Rules: one client per app; browsers use mode "cookie" (default), React Native uses mode "token" with secure storage; call `restore()` on start; never put a secret key (sk_...) in client code; never refresh tokens manually or in parallel; branch on `WardenError.code`.
+
+## Docs
+
+- [README](https://github.com/fatihacan1/warden-js/blob/main/README.md): quick starts for web, React Native and backends, full API tables
+- [AGENTS.md](https://github.com/fatihacan1/warden-js/blob/main/AGENTS.md): rules and common tasks for AI coding assistants
+- [Warden integration guide](https://github.com/fatihacan1/warden/blob/main/docs/integration.md): the HTTP API behind the SDK
+- [Warden OpenAPI](https://github.com/fatihacan1/warden/blob/main/api/openapi.yaml)
+
+## Examples
+
+- [Account screens](https://github.com/fatihacan1/warden-js/tree/main/examples/account-web)
+- [Express API with roles and webhooks](https://github.com/fatihacan1/warden-js/tree/main/examples/express-api)

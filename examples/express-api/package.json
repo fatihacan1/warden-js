@@ -1,0 +1,13 @@
+{
+  "name": "warden-express-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "brw-res-formatter": "^1.0.3",
+    "express": "^4.21.2",
+    "warden-auth": "^0.1.0"
+  }
+}
