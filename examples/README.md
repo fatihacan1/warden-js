@@ -2,6 +2,16 @@
 
 Both examples need a running Warden (`docker compose up -d` in the Warden repository) and keys from its admin UI (http://localhost:9090 > API keys).
 
+## playground
+
+Every SDK call behind a button, with requests and results in a log: sign up, sign in, two-factor, token refresh (including five at once), profile, photo, language, devices, GraphQL.
+
+```bash
+npm install --include=dev && npm run build
+npm run example
+# open http://localhost:5173/examples/playground/ and paste a publishable key
+```
+
 ## account-web
 
 Account screens without a framework, importing the built SDK.

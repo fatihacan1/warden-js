@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>warden-auth playground</title>
+<link rel="stylesheet" href="./playground.css">
+<script type="module" src="./playground.js"></script>
+</head>
+<body>
+<header class="bar">
+  <strong>warden-auth playground</strong>
+  <span id="state" class="state">Signed out</span>
+</header>
+<main class="layout">
+  <section class="controls">
+    <fieldset>
+      <legend>Connection</legend>
+      <label>Warden URL <input id="url" value="http://localhost:8080"></label>
+      <label>Publishable key <input id="key" placeholder="pk_test_..."></label>
+      <label>Mode
+        <select id="mode"><option value="cookie">cookie (browser default)</option><option value="token">token (mobile style)</option></select>
+      </label>
+      <button data-act="connect" class="primary">Connect</button>
+      <button data-act="providers">providers()</button>
+      <button data-act="restore">restore()</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Sign in</legend>
+      <label>Email <input id="email" type="email"></label>
+      <label>Password <input id="password" type="text" value="correct horse battery staple"></label>
+      <label>Name <input id="name" value="Ada"></label>
+      <div class="row">
+        <button data-act="signUp">signUp()</button>
+        <button data-act="signIn">signIn()</button>
+        <button data-act="signOut">signOut()</button>
+      </div>
+      <label>MFA code <input id="code" inputmode="numeric"></label>
+      <button data-act="verifyMfa">verifyMfa()</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tokens</legend>
+      <div class="row">
+        <button data-act="getAccessToken">getAccessToken()</button>
+        <button data-act="refresh">refresh()</button>
+        <button data-act="parallel">5 × getAccessToken() at once</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Profile</legend>
+      <div class="row">
+        <button data-act="me">user.get()</button>
+        <button data-act="rename">user.update({ name })</button>
+        <button data-act="localeTr">locale: tr</button>
+        <button data-act="localeEn">locale: en</button>
+      </div>
+      <label>Photo <input id="photo" type="file" accept="image/*"></label>
+      <div class="row">
+        <button data-act="upload">user.uploadAvatar()</button>
+        <button data-act="deleteAvatar">user.deleteAvatar()</button>
+      </div>
+      <div class="row">
+        <button data-act="resend">email.resend()</button>
+        <button data-act="forgot">password.forgot()</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Devices, accounts, MFA</legend>
+      <div class="row">
+        <button data-act="sessions">sessions.list()</button>
+        <button data-act="revokeOthers">sessions.revokeOthers()</button>
+        <button data-act="identities">identities.list()</button>
+      </div>
+      <div class="row">
+        <button data-act="totpSetup">mfa.setupTotp()</button>
+        <button data-act="totpEnable">mfa.enableTotp(code)</button>
+        <button data-act="totpDisable">mfa.disableTotp(code)</button>
+      </div>
+      <button data-act="graphql">graphql({ me })</button>
+    </fieldset>
+  </section>
+
+  <section class="output">
+    <div class="output-head"><strong>Log</strong><button data-act="clear">Clear</button></div>
+    <div id="avatar" class="avatar" hidden></div>
+    <ol id="log" class="log"></ol>
+  </section>
+</main>
+</body>
+</html>
