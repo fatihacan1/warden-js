@@ -1,8 +1,23 @@
-<p align="center"><img src="https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/banner.png" alt="warden-auth: TypeScript SDK for Warden" width="100%"></p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/banner.png" alt="warden-auth: TypeScript SDK for Warden" width="100%" />
+</p>
 
-# warden-auth
+<h1 align="center">warden-auth</h1>
 
-TypeScript SDK for [Warden](https://github.com/fatihacan1/warden), the self-hosted authentication service.
+<p align="center">
+  <strong>TypeScript SDK for <a href="https://github.com/fatihacan1/warden">Warden</a>, the self-hosted authentication service.</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/warden-auth"><img src="https://img.shields.io/npm/v/warden-auth?color=cb3837&logo=npm&logoColor=white&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/warden-auth"><img src="https://img.shields.io/npm/dm/warden-auth?color=333333&logo=npm" alt="npm downloads" /></a>
+  <a href="https://github.com/fatihacan1/warden-js/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-Ready-3178c6?logo=typescript&logoColor=white" alt="TypeScript ready" /></a>
+  <img src="https://img.shields.io/badge/dependencies-0-2ea44f" alt="Zero dependencies" />
+  <a href="https://github.com/fatihacan1/warden-js/actions/workflows/ci.yml"><img src="https://github.com/fatihacan1/warden-js/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+</p>
+
+---
 
 - **Apps** (browser, React Native): sign-up, sign-in, two-factor, token refresh, profile and photo, devices, linked accounts, social sign-in with PKCE, native Apple and Google sign-in.
 - **Backends** (Node.js 20+, Bun, Deno, edge): verify access tokens offline, check roles, Express middleware, create and manage users, verify webhooks.
@@ -12,6 +27,11 @@ Zero dependencies, ESM and CommonJS, fully typed. Ships an [`AGENTS.md`](AGENTS.
 ```bash
 npm install warden-auth
 ```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/images/playground.png" alt="Playground: every SDK call behind a button, results in a live log" width="100%" />
+  <br><sub>The <a href="examples/playground">playground</a>: every SDK call behind a button, against your own Warden.</sub>
+</p>
 
 ## Contents
 
@@ -217,6 +237,15 @@ try {
 Network failures have `code: "network_error"` and `status: 0`.
 
 ## Examples
+
+| Playground | Account screens |
+| --- | --- |
+| ![Playground](https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/images/playground.png) | ![Profile](https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/images/account-profile.png) |
+| Every SDK call behind a button, with a live log | Sign-in, profile, photo, language, password, two-factor, linked accounts, devices |
+
+![Security screen with two-factor setup](https://raw.githubusercontent.com/fatihacan1/warden-js/main/docs/images/account-security.png)
+
+- [`examples/playground`](examples/playground): a test bench. Connect to your Warden, click through sign-up, sign-in, refresh (including five at once), profile, photo, devices and GraphQL, and see each request's result.
 
 - [`examples/account-web`](examples/account-web): account screens with no framework: sign in and up, two-factor, profile and photo, email language, password, two-factor setup with recovery codes, linked accounts, devices. `npm run build && npm run example`, then open the printed URL.
 - [`examples/express-api`](examples/express-api): an API with role checks, user management and a webhook receiver.
