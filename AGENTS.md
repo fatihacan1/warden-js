@@ -56,6 +56,17 @@ No runtime dependencies. Dual ESM/CJS build. Node.js 20+ on servers.
   on `event.id`.
 - Social sign-in redirect URIs must be listed exactly in Warden's allowed
   redirect URIs; web origins must be on the publishable key (CORS).
+- Service-to-service calls use **service tokens** (OAuth client credentials),
+  never a user's token and never a shared API key: the calling service uses
+  `createServiceClient({ url, clientId, clientSecret, audience, scope })` and
+  `client.fetch(...)` / `client.getToken()` (it caches and renews the token;
+  do not cache or request tokens yourself). The client secret (`wcs_...`) is a
+  server-side secret like `sk_...`.
+- A route that should accept services needs `warden.express({ scopes: [...] })`
+  (or `serviceOnly: true`). Without that, service tokens are refused on
+  purpose. Never treat `req.auth.userId` as set for service tokens (it is
+  empty); check `isServiceToken(req.auth)` and use `req.auth.clientId` and
+  `scopes`. The receiving service must set `audience` to its own name.
 - Use Warden's JSON field names on user objects (`avatar_url`,
   `email_verified`, `mfa_enabled`, `locale`); do not invent camelCase copies.
 
@@ -71,6 +82,8 @@ No runtime dependencies. Dual ESM/CJS build. Node.js 20+ on servers.
 | First admin user | server: `warden.users.create({ email, password, roles: ["admin"], emailVerified: true })` |
 | Give a role | server: `warden.users.addRoles(userId, ["editor"])` |
 | Protect a route | server: `app.get(path, warden.express({ roles: ["admin"] }), handler)` |
+| Call another service | server: `const svc = createServiceClient({ url, clientId, clientSecret, audience: "orders-api", scope: "orders:read" }); await svc.fetch(url)` |
+| Accept service calls | server: `warden.express({ scopes: ["orders:read"] })`, internal-only: `{ serviceOnly: true, scopes: [...] }` |
 
 ## Working on this repository
 

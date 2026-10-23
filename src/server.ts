@@ -2,19 +2,29 @@
  * warden-auth/server: for your backends (Node.js 20+, Bun, Deno, edge).
  *
  * - verifyToken(): offline access token verification against Warden's JWKS
- * - express(): middleware with optional role requirements
+ * - express(): middleware with optional role and scope requirements
+ * - createServiceClient() / getServiceToken(): tokens for calling other services (OAuth client credentials)
  * - users / introspect / graphql: the server API, with a secret key
  * - verifyWebhook(): Standard Webhooks signature check
  *
  * Never import this file into a browser or mobile bundle with a secret key.
  */
 import { WardenError, errorFromResponse } from "./errors.js";
-import { JwksCache, verifyAccessToken, type Claims } from "./jwt.js";
+import { JwksCache, hasScope, isServiceToken, tokenScopes, verifyAccessToken, type Claims } from "./jwt.js";
+import { ServiceClient, type ServiceClientOptions } from "./service.js";
 import type { GraphQLResponse, ServerUser } from "./types.js";
 
 export { verifyWebhook, type VerifyWebhookInput } from "./webhook.js";
 export { WardenError, isWardenError } from "./errors.js";
-export type { Claims } from "./jwt.js";
+export { isServiceToken, hasScope, tokenScopes, type Claims, type ServiceClaims } from "./jwt.js";
+export {
+  ServiceClient,
+  createServiceClient,
+  getServiceToken,
+  type ServiceClientOptions,
+  type ServiceToken,
+  type TokenRequest,
+} from "./service.js";
 export type { ServerUser, User, WardenEvent, GraphQLResponse } from "./types.js";
 
 export interface WardenServerOptions {
@@ -37,10 +47,21 @@ export interface WardenServerOptions {
 export type RequestLike = { headers: Headers | Record<string, string | string[] | undefined> };
 
 export interface ExpressOptions {
-  /** The user needs at least one of these roles. */
+  /** The user needs at least one of these roles. Does not apply to service tokens, which have no roles. */
   roles?: string[];
-  /** The user needs every one of these roles. */
+  /** The user needs every one of these roles. Does not apply to service tokens. */
   allRoles?: string[];
+  /**
+   * Accept service tokens (client credentials, for service-to-service calls)
+   * that carry every one of these scopes. User tokens are not affected. Without
+   * `scopes` or `allowServiceTokens`, service tokens are refused with 403, so a
+   * route written for users never runs for a machine by accident.
+   */
+  scopes?: string[];
+  /** Accept service tokens without requiring particular scopes. Prefer `scopes`. */
+  allowServiceTokens?: boolean;
+  /** Only accept service tokens: for internal endpoints that users must never call. Implies `allowServiceTokens`. */
+  serviceOnly?: boolean;
   /** Let requests without a token through (req.auth stays undefined). */
   optional?: boolean;
   /** Also ask Warden whether the session is still active (one network call per request). */
@@ -51,7 +72,16 @@ export interface ExpressOptions {
 
 export interface Introspection {
   active: boolean;
-  reason?: "invalid_token" | "session_revoked" | "user_disabled";
+  reason?: "invalid_token" | "session_revoked" | "user_disabled" | "client_revoked";
+  /** "service" for tokens of a service client; absent on user tokens. */
+  token_type?: "service";
+  /** Service tokens: `client:<client_id>`. */
+  sub?: string;
+  client_id?: string;
+  client_name?: string;
+  /** Service tokens: granted scopes, space separated. */
+  scope?: string;
+  aud?: string[];
   user_id?: string;
   session_id?: string;
   email?: string;
@@ -61,10 +91,18 @@ export interface Introspection {
   expires_at?: string;
 }
 
-/** Fields of req.auth set by the Express middleware. */
+/**
+ * Fields of req.auth set by the Express middleware. For service tokens
+ * `userId` and `sessionId` are empty strings: check `clientId` or use
+ * `isServiceToken(req.auth)`.
+ */
 export interface AuthContext extends Claims {
   userId: string;
   sessionId: string;
+  /** Set when the caller is a service client. */
+  clientId?: string;
+  /** Scopes of a service token; empty for users. */
+  scopes: string[];
 }
 
 /** True when the claims carry the role. Exact match, never substrings. */
@@ -148,22 +186,41 @@ export class WardenServer {
       }
       this.verifyToken(token)
         .then(async (claims) => {
+          const forbidden = (msg = "You are not allowed to perform this action.") => new WardenError("forbidden", msg, 403);
+          if (isServiceToken(claims)) {
+            if (!opts.scopes && !opts.allowServiceTokens && !opts.serviceOnly) {
+              throw forbidden("Service tokens are not accepted here.");
+            }
+            if (opts.scopes?.some((s) => !hasScope(claims, s))) throw forbidden("The token is missing a required scope.");
+            if (opts.checkSession) {
+              const r = await this.introspect(token);
+              if (!r.active) throw new WardenError("invalid_token", "The service client was revoked.", 401);
+            }
+            req.auth = { ...claims, userId: "", sessionId: "", clientId: claims.client_id, scopes: tokenScopes(claims) };
+            return next();
+          }
+          if (opts.serviceOnly) throw forbidden("Only service clients may call this endpoint.");
           if (opts.checkSession) {
             const r = await this.introspect(token, { checkSession: true });
             if (!r.active) throw new WardenError("invalid_token", "The session has ended.", 401);
             claims = { ...claims, roles: r.roles ?? claims.roles };
           }
-          if (opts.roles?.length && !opts.roles.some((r) => hasRole(claims, r))) {
-            throw new WardenError("forbidden", "You are not allowed to perform this action.", 403);
-          }
-          if (opts.allRoles?.length && !opts.allRoles.every((r) => hasRole(claims, r))) {
-            throw new WardenError("forbidden", "You are not allowed to perform this action.", 403);
-          }
-          req.auth = { ...claims, userId: claims.sub, sessionId: claims.sid };
+          if (opts.roles?.length && !opts.roles.some((r) => hasRole(claims, r))) throw forbidden();
+          if (opts.allRoles?.length && !opts.allRoles.every((r) => hasRole(claims, r))) throw forbidden();
+          req.auth = { ...claims, userId: claims.sub, sessionId: claims.sid, scopes: [] };
           next();
         })
         .catch((err: unknown) => (err instanceof WardenError ? fail(err) : next(err)));
     };
+  }
+
+  /**
+   * A client for calling other services as this service: caches the access
+   * token until shortly before it expires and shares one request between
+   * concurrent callers. Uses this server's Warden URL and fetch.
+   */
+  serviceClient(opts: Omit<ServiceClientOptions, "url">): ServiceClient {
+    return new ServiceClient({ fetch: this.fetchImpl, ...opts, url: this.url });
   }
 
   // -------------------------------------------------------------------------

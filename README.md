@@ -41,6 +41,7 @@ npm install warden-auth
 - [Keys and security](#keys-and-security)
 - [Client API](#client-api)
 - [Server API](#server-api)
+- [Service-to-service](#service-to-service)
 - [Webhooks](#webhooks)
 - [Errors](#errors)
 - [Examples](#examples)
@@ -193,16 +194,60 @@ User objects use Warden's JSON field names (`avatar_url`, `email_verified`, `mfa
 | --- | --- |
 | `verifyToken(token)` | Offline verification; returns claims (`sub`, `sid`, `roles`, `email`, `amr`, ...) |
 | `authenticate(req)` | `verifyToken` on the request's bearer token |
-| `express({ roles?, allRoles?, optional?, checkSession?, onError? })` | Middleware; sets `req.auth` (`userId`, `sessionId`, `roles`, ...) |
-| `introspect(token, { checkSession? })` | Online check: also revoked sessions, disabled users, current roles |
+| `express({ roles?, allRoles?, scopes?, allowServiceTokens?, serviceOnly?, optional?, checkSession?, onError? })` | Middleware; sets `req.auth` (`userId`, `sessionId`, `roles`, `clientId`, `scopes`, ...). Service tokens need `scopes` (see below) |
+| `introspect(token, { checkSession? })` | Online check: also revoked sessions, disabled users, current roles; for service tokens `client_id`, `scope` and whether the client is revoked |
+| `serviceClient({ clientId, clientSecret, scope?, audience? })` | Tokens for calling other services (below), using this server's URL |
 | `users.create(...)` / `users.get(id)` / `users.findByEmail(email)` | Users |
 | `users.update(id, { name?, roles?, disabled?, locale? })` | Update; roles replace the list |
 | `users.addRoles(id, roles)` / `users.removeRoles(id, roles)` | Role helpers |
 | `users.revokeSessions(id)` | Sign out everywhere |
 | `graphql(query, variables?)` | Server-side GraphQL with the secret key |
 | `hasRole(claims, role)` | Exact role match |
+| `isServiceToken(claims)` / `hasScope(claims, scope)` / `tokenScopes(claims)` | Tell service tokens from user tokens; exact scope match |
 
 Roles are in the access token, so a role change shows up after the user's next refresh (within the access token lifetime). For sensitive actions use `checkSession: true` or `introspect`, which see changes immediately.
+
+## Service-to-service
+
+Microservices authenticate to each other with the OAuth 2.0 **client credentials** grant. Create a service client in Warden (admin UI, *Developers > Service clients*: name, allowed scopes and audiences), give its id (`svc_...`) and secret (`wcs_...`) to the calling service, and let the SDK fetch and cache short-lived tokens. The receiving service verifies them offline with the same JWKS as user tokens.
+
+**Calling service.** The token is cached until 30 seconds before it expires, concurrent callers share one request, and a 401 from the receiver triggers one retry with a fresh token:
+
+```ts
+import { createServiceClient } from "warden-auth/server";
+
+const billing = createServiceClient({
+  url: "https://auth.example.com",
+  clientId: process.env.WARDEN_CLIENT_ID!,
+  clientSecret: process.env.WARDEN_CLIENT_SECRET!,   // from a secret manager, never in a client bundle
+  audience: "billing-api",                           // the receiving service
+  scope: "invoices:read",                            // optional: default is every scope the client may have
+});
+
+const res = await billing.fetch("https://billing.internal/invoices");
+// or: const token = await billing.getToken();
+```
+
+`getServiceToken({ url, clientId, clientSecret, scope?, audience? })` is the one-call version with a process-wide cache, and `warden.serviceClient({ clientId, clientSecret })` reuses a `createWardenServer` instance's URL. `getToken({ scope, audience, forceRefresh })` can ask for other scopes or audiences than the defaults (each combination is cached separately). Errors are `WardenError`s with the OAuth code: `invalid_client`, `invalid_scope`, `invalid_target`, `rate_limited`, ...
+
+**Receiving service.** Set `audience` to the name your service has in the client's allowed audiences, then require scopes:
+
+```ts
+import { createWardenServer, isServiceToken } from "warden-auth/server";
+
+const warden = createWardenServer({ url: "https://auth.example.com", audience: "billing-api" });
+
+// Users and services may both call this one; services must carry invoices:read.
+app.get("/invoices", warden.express({ scopes: ["invoices:read"] }), (req, res) => {
+  if (isServiceToken(req.auth)) console.log("called by", req.auth.clientId);
+  res.json([]);
+});
+
+// Internal only: users are refused.
+app.post("/internal/reindex", warden.express({ serviceOnly: true, scopes: ["invoices:write"] }), handler);
+```
+
+A route without `scopes`, `allowServiceTokens` or `serviceOnly` **refuses service tokens** with 403, so an endpoint written for signed-in users never runs for a machine by accident. For service tokens `roles` and `allRoles` do not apply (they have no roles) and `req.auth.userId` is empty; `req.auth.clientId` and `req.auth.scopes` are set. `verifyToken` accepts both kinds and gives `client_id` and `scope` on the claims; `checkSession: true` makes the middleware ask Warden whether the client is still active.
 
 ## Webhooks
 

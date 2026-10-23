@@ -1,11 +1,19 @@
 import { WardenError } from "./errors.js";
 import { base64Decode, getCrypto, utf8 } from "./encoding.js";
 
-/** Access token claims (RFC 9068 profile). */
+/**
+ * Access token claims (RFC 9068 profile).
+ *
+ * Tokens come in two kinds. User tokens have a user id in `sub`, a session in
+ * `sid` and `roles`. Service tokens (OAuth client credentials, for
+ * service-to-service calls) have `sub: "client:<client_id>"`, `client_id` and
+ * `scope`, and an empty `sid` and `roles`. Tell them apart with
+ * `isServiceToken(claims)`.
+ */
 export interface Claims {
-  /** User id. */
+  /** User id, or `client:<client_id>` for service tokens. */
   sub: string;
-  /** Session id: pass it to introspect or revoke. */
+  /** Session id: pass it to introspect or revoke. Empty on service tokens. */
   sid: string;
   iss: string;
   aud: string | string[];
@@ -18,6 +26,28 @@ export interface Claims {
   roles: string[];
   /** How the user authenticated: pwd, mfa, otp, oauth:google, ... */
   amr: string[];
+  /** Service tokens only: the service client that holds the token. */
+  client_id?: string;
+  /** Service tokens only: granted scopes, space separated (RFC 9068). */
+  scope?: string;
+}
+
+/** Claims of a service token: `client_id` and `scope` are always present. */
+export type ServiceClaims = Claims & { client_id: string; scope: string };
+
+/** True for tokens issued to a service client (client credentials grant), false for user tokens. */
+export function isServiceToken(claims: Pick<Claims, "client_id"> | null | undefined): claims is ServiceClaims {
+  return typeof claims?.client_id === "string" && claims.client_id !== "";
+}
+
+/** The scopes of a service token as a list. User tokens have none. */
+export function tokenScopes(claims: Pick<Claims, "scope"> | null | undefined): string[] {
+  return typeof claims?.scope === "string" ? claims.scope.split(/\s+/).filter(Boolean) : [];
+}
+
+/** True when a service token carries the scope. Exact match. */
+export function hasScope(claims: Pick<Claims, "scope"> | null | undefined, scope: string): boolean {
+  return tokenScopes(claims).includes(scope);
 }
 
 interface Jwk {
@@ -144,5 +174,12 @@ export async function verifyAccessToken(token: string, jwks: JwksCache, opts: Ve
   if (typeof c.exp !== "number" || c.exp + leeway < now) throw invalid("Token expired.");
   if (typeof c.nbf === "number" && c.nbf - leeway > now) throw invalid("Token not valid yet.");
   if (typeof c.sub !== "string" || !c.sub) throw invalid("Token has no subject.");
+  if (c.client_id !== undefined) {
+    // Service token: it must be about a client, never about a user session.
+    if (typeof c.client_id !== "string" || !c.client_id || c.sub !== "client:" + c.client_id || c.sid) {
+      throw invalid("Malformed service token.");
+    }
+    return { ...c, sid: "", scope: typeof c.scope === "string" ? c.scope : "", roles: [], amr: [], email_verified: false };
+  }
   return { ...c, roles: Array.isArray(c.roles) ? c.roles : [], amr: Array.isArray(c.amr) ? c.amr : [], email_verified: !!c.email_verified };
 }
